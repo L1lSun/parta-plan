@@ -72,10 +72,13 @@ export function assignStudents(students, rows, desks) {
   if (students.length === 0) return seats;
   if (students.length > seats.length) throw new Error('В кабинете недостаточно мест.');
 
+  const seatsPerRow = desks * 2;
+  // Match exactly one slot per student so every row before the last used row is full.
+  const rowSlots = seats.slice(0, students.length);
+  const depthRange = Math.ceil(rowSlots.length / seatsPerRow) - 1;
   const heights = students.map(student => student.height);
   const shortest = Math.min(...heights);
   const heightRange = Math.max(...heights) - shortest;
-  const depthRange = rows - 1;
   // One unit of the integer vision penalty outweighs the combined secondary costs.
   const visionPriority = 2 * students.length + 1;
 
@@ -86,7 +89,7 @@ export function assignStudents(students, rows, desks) {
     const lastPreferredRow = 1 + Math.round(depthRange * vision ** 3);
     const visionSeverity = 100 + Math.round(100 * visionNeed);
 
-    return seats.map(seat => {
+    return rowSlots.map(seat => {
       const rowsBeyondPreference = Math.max(0, seat.row - lastPreferredRow);
       const depth = (seat.row - 1) / Math.max(1, depthRange);
       const heightLoss = (heightDepth - depth) ** 2;
@@ -96,13 +99,11 @@ export function assignStudents(students, rows, desks) {
   });
 
   const assignment = minimumAssignment(costs);
-  const seatsPerRow = desks * 2;
   const middleSeat = desks + 0.5;
   // Once rows are decided, give the central seats in each row to the weakest eyesight.
-  for (let start = 0; start < seats.length; start += seatsPerRow) {
+  for (let start = 0; start < rowSlots.length; start += seatsPerRow) {
     const end = start + seatsPerRow;
-    const rowStudents = Array.from(assignment.subarray(start, end))
-      .filter(owner => owner > 0).map(owner => students[owner - 1])
+    const rowStudents = Array.from(assignment.subarray(start, end), owner => students[owner - 1])
       .sort((a, b) => a.vision - b.vision);
     const rowSeats = seats.slice(start, end)
       .sort((a, b) => Math.abs(a.number - middleSeat) - Math.abs(b.number - middleSeat));
