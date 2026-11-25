@@ -3,12 +3,12 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Автоматическая рассадка учеников по росту и остроте зрения с импортом из Excel.">
+  <meta name="description" content="Введите список учеников и получите план рассадки по росту и остроте зрения.">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
   <title>План класса — Рассадка учеников</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="style.css">
-  <script type="module" src="app.mjs"></script>
+  <link rel="stylesheet" href="style.css?v=2">
+  <script type="module" src="app.mjs?v=2"></script>
 </head>
 <body>
   <header class="topbar">
@@ -26,30 +26,40 @@
   <main class="page">
     <section class="intro" aria-labelledby="page-title">
       <h1 id="page-title">Рассадка учеников</h1>
-      <p>Загрузите список класса из Excel и получите план мест с учётом роста и зрения.</p>
+      <p>Введите данные учеников, настройте кабинет и получите план мест с учётом роста и зрения.</p>
     </section>
     <div class="workspace">
       <div class="sidebar">
-        <section class="card config" aria-labelledby="import-title">
-          <h2 id="import-title">Список учеников</h2>
-          <p class="section-note">Три столбца: ФИО, рост в см, острота зрения.</p>
-          <input id="file-input" class="visually-hidden" type="file" accept=".xlsx,.csv" tabindex="-1">
-          <button type="button" class="dropzone" id="dropzone" aria-describedby="file-formats">
-            <span class="upload-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 16V4m-4 4 4-4 4 4M5 15v5h14v-5"/></svg></span>
-            <span id="upload-label">Выбрать файл</span>
-            <span class="drop-note" id="file-formats">или перетащите .xlsx или .csv</span>
-          </button>
-          <div class="file-state" id="file-state" hidden>
-            <span class="file-name" id="file-name"></span>
-            <button type="button" class="icon-button" id="clear-file" aria-label="Удалить список"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+        <section class="card config" aria-labelledby="roster-title">
+          <div class="roster-header">
+            <h2 id="roster-title">Список учеников</h2>
+            <span class="student-count" id="student-count" aria-live="polite">0 учеников</span>
           </div>
-          <div class="error" id="import-error" role="alert" hidden></div>
-          <div class="file-actions">
-            <button type="button" class="text-button" id="template-button">
-              <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 4v11m-4-4 4 4 4-4M5 16v4h14v-4"/></svg>
-              Шаблон Excel
-            </button>
-            <button type="button" class="text-button" id="example-button">Открыть пример</button>
+          <form id="student-form" class="student-form" autocomplete="off" novalidate>
+            <div class="fields student-fields">
+              <label class="name-field">ФИО ученика
+                <input id="student-name" type="text" maxlength="150" placeholder="Иванов Иван Иванович" required>
+              </label>
+              <label>Рост, см
+                <input id="student-height" type="text" inputmode="decimal" maxlength="12" placeholder="152" required>
+              </label>
+              <label>Острота зрения
+                <input id="student-vision" type="text" inputmode="decimal" maxlength="12" placeholder="0,8" required>
+              </label>
+            </div>
+            <p class="error" id="student-error" role="alert" hidden></p>
+            <div class="student-actions">
+              <button type="submit" class="secondary-button" id="save-student">
+                <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+                <span id="save-student-label">Добавить ученика</span>
+              </button>
+              <button type="button" class="text-button" id="cancel-edit" hidden>Отмена</button>
+              <button type="button" class="text-button" id="example-button">Открыть пример</button>
+            </div>
+          </form>
+          <div class="roster-content" id="roster-content" hidden>
+            <ul class="roster-list" id="roster-list" aria-label="Добавленные ученики"></ul>
+            <button type="button" class="text-button clear-button" id="clear-roster">Очистить список</button>
           </div>
         </section>
         <section class="card config" aria-labelledby="room-title">
@@ -65,17 +75,17 @@
             Распределить места
           </button>
         </section>
-        <p class="privacy"><svg aria-hidden="true" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3m-4 4v3"/></svg>Файл обрабатывается в вашем браузере. Данные учеников остаются на устройстве.</p>
+        <p class="privacy"><svg aria-hidden="true" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3m-4 4v3"/></svg>Данные учеников остаются в этой вкладке. Сохраните схему перед закрытием.</p>
       </div>
       <section class="card plan" aria-labelledby="plan-title">
         <div class="plan-header">
           <div>
             <h2 id="plan-title">План кабинета</h2>
-            <p id="plan-status" aria-live="polite">Загрузите список, чтобы распределить места</p>
+            <p id="plan-status" aria-live="polite">Добавьте учеников, чтобы распределить места</p>
           </div>
           <div class="plan-actions" aria-label="Экспорт плана">
             <button type="button" class="outline-button" id="export-button" disabled>
-              <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 4v11m-4-4 4 4 4-4M5 16v4h14v-4"/></svg><span>Excel</span>
+              <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 4v11m-4-4 4 4 4-4M5 16v4h14v-4"/></svg><span>Скачать Excel</span>
             </button>
             <button type="button" class="outline-button" id="print-button" disabled>
               <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M7 8V3h10v5M7 17H4V9h16v8h-3m-10-4h10v8H7zm10-2h.01"/></svg><span>Печать</span>
@@ -98,12 +108,26 @@
   <dialog id="help-dialog" aria-labelledby="help-title">
     <div class="dialog-head"><h2 id="help-title">Как это работает</h2><form method="dialog"><button class="icon-button" aria-label="Закрыть"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button></form></div>
     <ol class="help-list">
-      <li>Заполните первый лист Excel. В столбце A укажите ФИО, в B — рост в сантиметрах, в C — остроту зрения, например 0,7 или 1,0. Сайт также принимает CSV с точкой с запятой, запятой или табуляцией.</li>
+      <li>Введите ФИО, рост в сантиметрах и остроту зрения ученика, например 0,8 или 1,0. Нажмите «Добавить ученика». Запись можно исправить или удалить в списке.</li>
       <li>Укажите, сколько рядов от доски и сколько двухместных парт стоит в каждом ряду. Ряд 1 расположен ближе всего к доске.</li>
       <li>Нажмите «Распределить места». При расчёте ученики с пониженной остротой зрения получают приоритет на места ближе к доске и к центру. Рост учитывается так, чтобы более низкие ученики по возможности сидели перед более высокими.</li>
       <li>Распечатайте схему или скачайте её в Excel. В результат входят ФИО и места.</li>
     </ol>
     <p class="section-note">Остроту зрения можно указать в процентах, например 70%. Диоптрии из рецепта на очки не подходят для этого расчёта.</p>
   </dialog>
+  <template id="student-row-template">
+    <li class="roster-row">
+      <div class="roster-person">
+        <span class="roster-name"></span>
+        <span class="roster-details"></span>
+      </div>
+      <button type="button" class="icon-button edit-student" title="Изменить">
+        <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m14.5 5.5 4 4M4 20l4.5-.8L20 7.7 16.3 4 4.8 15.5z"/></svg>
+      </button>
+      <button type="button" class="icon-button remove-student" title="Удалить">
+        <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v5m4-5v5"/></svg>
+      </button>
+    </li>
+  </template>
 </body>
 </html>

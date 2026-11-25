@@ -1,14 +1,23 @@
-import { makeWorkbook, readWorkbook } from './excel.mjs';
-import { decodeCsv, readDelimited, validateRoster } from './roster.mjs';
-import { assignStudents, MAX_DESKS, MAX_ROWS, seatsFor } from './seating.mjs';
+import { makeWorkbook } from './excel.mjs?v=2';
+import { validateStudent } from './roster.mjs?v=2';
+import { assignStudents, MAX_DESKS, MAX_ROWS, MAX_STUDENTS, seatsFor } from './seating.mjs';
 
 const byId = id => document.getElementById(id);
-const fileInput = byId('file-input');
-const dropzone = byId('dropzone');
-const uploadLabel = byId('upload-label');
-const fileState = byId('file-state');
-const fileName = byId('file-name');
-const importError = byId('import-error');
+const studentForm = byId('student-form');
+const studentInputs = {
+  name: byId('student-name'),
+  height: byId('student-height'),
+  vision: byId('student-vision'),
+};
+const studentError = byId('student-error');
+const saveStudent = byId('save-student');
+const saveLabel = byId('save-student-label');
+const cancelEdit = byId('cancel-edit');
+const exampleButton = byId('example-button');
+const rosterContent = byId('roster-content');
+const rosterList = byId('roster-list');
+const rowTemplate = byId('student-row-template');
+const studentCount = byId('student-count');
 const rowsInput = byId('row-count');
 const desksInput = byId('desk-count');
 const capacity = byId('capacity');
@@ -31,10 +40,10 @@ const sample = [
 
 let roster = [];
 let plan = null;
-let importGeneration = 0;
-let importing = false;
+let editingStudent = null;
 
 const plural = new Intl.PluralRules('ru');
+const number = new Intl.NumberFormat('ru', { maximumFractionDigits: 12 });
 function countLabel(count, forms) {
   return `${count} ${forms[plural.select(count)] ?? forms.many}`;
 }
@@ -93,92 +102,90 @@ function render() {
   capacity.textContent = `Вместимость: ${places(total)}`;
   roomError.hidden = !shortfall;
   roomError.textContent = shortfall ? `Нужно ещё ${places(shortfall)}. Добавьте ряды или парты.` : '';
-  calculateButton.disabled = !roster.length || Boolean(shortfall) || importing;
+  calculateButton.disabled = !roster.length || Boolean(shortfall);
   exportButton.disabled = !plan;
   printButton.disabled = !plan;
 
   if (plan) status.textContent = `${pupils(roster.length)} · свободно ${places(total - roster.length)}`;
   else if (roster.length) status.textContent = `В списке ${pupils(roster.length)}. Распределите места.`;
-  else status.textContent = 'Загрузите список, чтобы распределить места';
+  else status.textContent = 'Добавьте учеников, чтобы распределить места';
 
   renderSeats(plan ?? seatsFor(rows, desks), desks);
 }
 
-function showErrors(errors = []) {
-  importError.hidden = !errors.length;
-  importError.replaceChildren();
-  if (!errors.length) return;
-  if (errors.length === 1) {
-    importError.textContent = errors[0];
-    return;
+function showStudentErrors(errors = {}) {
+  const messages = Object.values(errors);
+  studentError.hidden = !messages.length;
+  studentError.textContent = messages.join(' ');
+  for (const [field, input] of Object.entries(studentInputs)) {
+    if (errors[field]) input.setAttribute('aria-invalid', 'true');
+    else input.removeAttribute('aria-invalid');
   }
-
-  importError.append(node('p', '', 'Исправьте ошибки в файле и загрузите его снова.'));
-  const list = node('ul', '');
-  for (const error of errors.slice(0, 5)) list.append(node('li', '', error));
-  if (errors.length > 5) list.append(node('li', '', `Других ошибок: ${errors.length - 5}`));
-  importError.append(list);
 }
 
-function setImporting(value) {
-  importing = value;
-  dropzone.setAttribute('aria-busy', String(value));
-  uploadLabel.textContent = value ? 'Читаем файл…' : roster.length ? 'Заменить файл' : 'Выбрать файл';
+function renderEditor() {
+  const editing = Boolean(editingStudent);
+  saveLabel.textContent = editing ? 'Сохранить изменения' : 'Добавить ученика';
+  saveStudent.querySelector('svg').toggleAttribute('hidden', editing);
+  saveStudent.disabled = !editing && roster.length >= MAX_STUDENTS;
+  cancelEdit.hidden = !editing;
+  exampleButton.hidden = roster.length > 0;
 }
 
-function setRoster(students, filename) {
-  roster = students;
+function resetEditor() {
+  editingStudent = null;
+  studentForm.reset();
+  showStudentErrors();
+  renderEditor();
+}
+
+function editStudent(student) {
+  editingStudent = student;
+  studentInputs.name.value = student.name;
+  studentInputs.height.value = String(student.height).replace('.', ',');
+  studentInputs.vision.value = String(student.vision).replace('.', ',');
+  showStudentErrors();
+  renderEditor();
+  studentInputs.name.focus();
+}
+
+function removeStudent(student) {
+  const index = roster.indexOf(student);
+  roster.splice(index, 1);
+  if (editingStudent === student) resetEditor();
+  renderUpdatedRoster();
+  const next = rosterList.children[Math.min(index, roster.length - 1)];
+  (next?.querySelector('.remove-student') ?? studentInputs.name).focus();
+}
+
+function renderUpdatedRoster() {
+  const scrollTop = rosterList.scrollTop;
+  const fragment = document.createDocumentFragment();
+  for (const student of roster) {
+    const row = rowTemplate.content.cloneNode(true);
+    row.querySelector('.roster-name').textContent = student.name;
+    row.querySelector('.roster-details').textContent = `${number.format(student.height)} см · Зрение ${number.format(student.vision)}`;
+    const edit = row.querySelector('.edit-student');
+    edit.setAttribute('aria-label', `Изменить: ${student.name}`);
+    edit.addEventListener('click', () => editStudent(student));
+    const remove = row.querySelector('.remove-student');
+    remove.setAttribute('aria-label', `Удалить: ${student.name}`);
+    remove.addEventListener('click', () => removeStudent(student));
+    fragment.append(row);
+  }
+  studentCount.textContent = pupils(roster.length);
+  rosterContent.hidden = !roster.length;
+  rosterList.replaceChildren(fragment);
+  rosterList.scrollTop = scrollTop;
+  renderEditor();
   plan = null;
-  fileState.hidden = !students.length;
-  fileName.textContent = filename;
-  fileName.title = filename;
-
-  if (students.length) {
-    const desks = Number(desksInput.value);
-    const rows = Number(rowsInput.value);
-    const requiredRows = Math.ceil(students.length / (desks * 2));
-    // Preserve the teacher's desk count and add rows as far as the room limit allows.
-    if (requiredRows > rows) rowsInput.value = Math.min(requiredRows, MAX_ROWS);
-  }
-  setImporting(false);
   render();
-}
-
-async function importFile(file) {
-  if (!file) return;
-  const generation = ++importGeneration;
-  showErrors();
-  setImporting(true);
-  render();
-  try {
-    if (file.size > 5 * 1024 * 1024) throw new Error('Файл слишком большой. Загрузите список размером до 5 МБ.');
-    const extension = file.name.split('.').pop()?.toLowerCase();
-    if (extension !== 'xlsx' && extension !== 'csv') {
-      throw new Error('Выберите файл .xlsx или .csv. Старый файл .xls можно пересохранить в Excel как .xlsx.');
-    }
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    const records = extension === 'xlsx' ? await readWorkbook(bytes) : readDelimited(decodeCsv(bytes));
-    if (generation !== importGeneration) return;
-    const { students, errors } = validateRoster(records);
-    if (errors.length) showErrors(errors);
-    else setRoster(students, file.name);
-  } catch (error) {
-    if (generation === importGeneration) {
-      showErrors([error instanceof Error && /[А-Яа-яЁё]/.test(error.message)
-        ? error.message : 'Не удалось прочитать файл. Проверьте, открывается ли он в Excel, и попробуйте снова.']);
-    }
-  } finally {
-    if (generation === importGeneration && importing) {
-      setImporting(false);
-      render();
-    }
-  }
 }
 
 function calculate() {
   const rows = Number(rowsInput.value);
   const desks = Number(desksInput.value);
-  if (!roster.length || roster.length > rows * desks * 2 || importing) return;
+  if (!roster.length || roster.length > rows * desks * 2) return;
   plan = assignStudents(roster, rows, desks);
   render();
 }
@@ -194,49 +201,44 @@ function download(blob, name) {
   setTimeout(() => URL.revokeObjectURL(url), 30_000);
 }
 
-fileInput.addEventListener('change', () => {
-  const file = fileInput.files[0];
-  fileInput.value = '';
-  importFile(file);
-});
-dropzone.addEventListener('click', () => fileInput.click());
-for (const eventName of ['dragenter', 'dragover']) {
-  dropzone.addEventListener(eventName, event => {
-    event.preventDefault();
-    dropzone.classList.add('drag-over');
-  });
-}
-dropzone.addEventListener('dragleave', event => {
-  if (!(event.relatedTarget instanceof Node) || !dropzone.contains(event.relatedTarget)) {
-    dropzone.classList.remove('drag-over');
-  }
-});
-dropzone.addEventListener('drop', event => {
+studentForm.addEventListener('submit', event => {
   event.preventDefault();
-  dropzone.classList.remove('drag-over');
-  if (event.dataTransfer.files.length > 1) {
-    showErrors(['Загрузите один файл со списком класса.']);
-  } else {
-    importFile(event.dataTransfer.files[0]);
+  if (!editingStudent && roster.length >= MAX_STUDENTS) return;
+  const { student, errors } = validateStudent(studentInputs.name.value, studentInputs.height.value, studentInputs.vision.value);
+  if (!student) {
+    showStudentErrors(errors);
+    const firstInvalid = Object.keys(errors)[0];
+    studentInputs[firstInvalid].focus();
+    return;
   }
+  const adding = !editingStudent;
+  if (adding) roster.push(student);
+  else roster[roster.indexOf(editingStudent)] = student;
+  resetEditor();
+  renderUpdatedRoster();
+  if (adding) rosterList.scrollTop = rosterList.scrollHeight;
+  studentInputs.name.focus();
 });
-
-byId('template-button').addEventListener('click', () => {
-  download(makeWorkbook('Список учеников', [['ФИО', 'Рост (см)', 'Острота зрения']], [42, 16, 21]), 'Шаблон списка учеников.xlsx');
+cancelEdit.addEventListener('click', () => {
+  resetEditor();
+  studentInputs.name.focus();
 });
-byId('example-button').addEventListener('click', () => {
-  importGeneration++;
-  showErrors();
-  rowsInput.value = '4';
-  desksInput.value = '3';
-  setRoster(sample, 'Пример класса');
+studentForm.addEventListener('input', () => {
+  if (!studentError.hidden) showStudentErrors();
+  exampleButton.hidden = roster.length > 0 || Object.values(studentInputs).some(input => input.value.trim());
+});
+exampleButton.addEventListener('click', () => {
+  roster = [...sample];
+  resetEditor();
+  renderUpdatedRoster();
   calculate();
 });
-byId('clear-file').addEventListener('click', () => {
-  importGeneration++;
-  showErrors();
-  setRoster([], '');
-  dropzone.focus();
+byId('clear-roster').addEventListener('click', () => {
+  if (!window.confirm('Очистить список учеников и план рассадки?')) return;
+  roster = [];
+  resetEditor();
+  renderUpdatedRoster();
+  studentInputs.name.focus();
 });
 for (const input of [rowsInput, desksInput]) {
   input.addEventListener('change', () => {

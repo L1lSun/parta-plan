@@ -11,13 +11,12 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 body { margin: 0; min-width: 280px; }
-button, select { font: inherit; }
+button, input, select { font: inherit; }
 button { cursor: pointer; }
 button:disabled { cursor: default; }
 button svg, .privacy svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; flex: none; }
 :focus-visible { outline: 3px solid #7565e6; outline-offset: 3px; }
 [hidden] { display: none !important; }
-.visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
 .topbar { background: #201c3e; color: white; }
 .top-inner { max-width: 1264px; margin: auto; min-height: 68px; padding: 0 32px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
@@ -31,28 +30,42 @@ button svg, .privacy svg { width: 19px; height: 19px; fill: none; stroke: curren
 h1, h2, p { margin: 0; }
 h1 { font-size: clamp(2rem, 4vw, 2.75rem); line-height: 1.1; letter-spacing: -.04em; font-weight: 760; }
 .intro p { margin-top: 12px; color: var(--muted); line-height: 1.55; }
-.workspace { display: grid; align-items: start; grid-template-columns: minmax(0, 336px) minmax(0, 1fr); gap: 22px; }
+.workspace { display: grid; align-items: start; grid-template-columns: minmax(0, 370px) minmax(0, 1fr); gap: 22px; }
 .sidebar { display: grid; gap: 16px; }
 .card { background: white; border: 1px solid var(--line); border-radius: 17px; box-shadow: 0 2px 5px #29234a06; }
 .config { padding: 21px; }
 h2 { font-size: 1.25rem; line-height: 1.24; letter-spacing: -.018em; font-weight: 730; }
 .section-note { margin-top: 7px; color: var(--muted); font-size: .875rem; line-height: 1.5; }
 
-.dropzone { margin-top: 16px; background: #f8f7ff; border: 1px dashed #9d91e2; border-radius: 12px; width: 100%; min-height: 125px; padding: 12px 8px; display: grid; justify-items: center; align-content: center; gap: 5px; color: #40349e; font-weight: 690; }
-.dropzone:hover, .dropzone.drag-over { background: #efebff; border-color: var(--accent); }
-.dropzone:disabled { opacity: .66; }
-.upload-icon { width: 34px; height: 34px; border-radius: 9px; background: #eae5ff; display: grid; place-items: center; margin-bottom: 2px; }
-.drop-note { font-size: .875rem; color: var(--muted); font-weight: 400; }
-.file-state { display: flex; align-items: center; justify-content: space-between; gap: 6px; background: #f0f8f4; color: #225744; padding: 5px 7px 5px 11px; margin-top: 9px; border-radius: 8px; font-size: .875rem; }
-.file-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.roster-header { display: flex; align-items: baseline; justify-content: space-between; gap: 7px 10px; flex-wrap: wrap; }
+.student-count { color: #48409a; background: #f0edff; padding: 4px 8px; border-radius: 6px; font-size: .8125rem; font-weight: 650; white-space: nowrap; }
+.name-field { grid-column: 1 / -1; }
+.fields input { width: 100%; min-width: 0; min-height: 41px; border: 1px solid #d9dbea; border-radius: 8px; padding: 7px 10px; color: var(--ink); background: #fcfcfe; font-size: 1rem; font-weight: 400; }
+.fields input::placeholder { color: #686b83; }
+.fields input[aria-invalid="true"] { border-color: #be4d6b; }
+.student-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-top: 10px; }
+.secondary-button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 40px; padding: 7px 10px; border: 1px solid #d9d2ff; border-radius: 8px; color: #4538a9; background: #f1edff; font-size: .875rem; font-weight: 690; }
+.secondary-button svg { width: 16px; height: 16px; }
+.secondary-button:hover { background: #e8e1ff; }
+.secondary-button:disabled { opacity: .6; }
+.roster-content { border-top: 1px solid var(--line); margin-top: 14px; padding-top: 4px; }
+.roster-list { list-style: none; padding: 0 4px 0 0; margin: 0; max-height: 13rem; overflow: auto; scrollbar-gutter: stable; }
+.roster-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 2px; padding: 7px 0 7px 4px; border-bottom: 1px solid var(--line); }
+.roster-row:last-child { border-bottom: 0; }
+.roster-person { display: grid; gap: 2px; }
+.roster-name { font-size: .875rem; font-weight: 650; overflow-wrap: anywhere; }
+.roster-details { color: var(--muted); font-size: .8125rem; }
+.roster-row .icon-button { width: 34px; height: 34px; }
+.clear-button { margin-top: 4px; }
 .icon-button { width: 30px; height: 30px; border: 0; border-radius: 7px; display: grid; place-items: center; color: inherit; background: transparent; flex: none; }
 .icon-button:hover { background: #5142c514; }
-.file-actions { display: flex; flex-wrap: wrap; justify-content: space-between; column-gap: 9px; row-gap: 1px; margin-top: 8px; }
+.icon-button.edit-student { color: #4538a9; }
+.icon-button.remove-student { color: #786774; }
+.icon-button.remove-student:hover { background: #fff0f2; color: #8a243f; }
 .text-button { color: #4538a9; min-height: 34px; padding: 3px 0; border: none; background: transparent; display: inline-flex; align-items: center; gap: 5px; font-size: .875rem; font-weight: 650; }
 .text-button:hover { text-decoration: underline; }
 .text-button svg { width: 16px; height: 16px; }
 .error, .room-error { margin-top: 9px; padding: 9px 10px; background: #fff0f2; color: #8a243f; border-radius: 8px; font-size: .875rem; line-height: 1.45; overflow-wrap: anywhere; }
-.error ul { margin: 5px 0 0; padding-left: 19px; }
 
 .fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
 .fields label { display: grid; gap: 6px; font-size: .875rem; font-weight: 650; }
@@ -96,7 +109,7 @@ dialog::backdrop { background: #211b3e8a; }
 .help-list li + li { margin-top: 9px; }
 
 @media (max-width: 880px) {
-  .workspace { grid-template-columns: minmax(0, 285px) minmax(0, 1fr); gap: 15px; }
+  .workspace { grid-template-columns: minmax(0, 310px) minmax(0, 1fr); gap: 15px; }
   .config, .plan { padding: 17px; }
   .page, .top-inner { padding-left: 20px; padding-right: 20px; }
 }
