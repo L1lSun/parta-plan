@@ -1,6 +1,6 @@
 import { makeWorkbook } from './excel.mjs?v=2';
 import { validateStudent } from './roster.mjs?v=2';
-import { assignStudents, MAX_DESKS, MAX_ROWS, MAX_STUDENTS, seatsFor } from './seating.mjs';
+import { assignStudents, MAX_DESKS, MAX_ROWS, MAX_STUDENTS, seatsFor } from './seating.mjs?v=3';
 
 const byId = id => document.getElementById(id);
 const studentForm = byId('student-form');

@@ -72,27 +72,41 @@ export function assignStudents(students, rows, desks) {
   if (students.length === 0) return seats;
   if (students.length > seats.length) throw new Error('В кабинете недостаточно мест.');
 
-  const usedRows = Math.ceil(students.length / (desks * 2));
-  const availableSeats = seats.slice(0, usedRows * desks * 2);
-  const heights = students.map(student => student.height).sort((a, b) => a - b);
-  const costs = students.map(student => {
-    // Students of the same height have the same target depth.
-    const first = heights.indexOf(student.height);
-    const last = heights.lastIndexOf(student.height);
-    const heightRank = (first + last) / (2 * Math.max(1, heights.length - 1));
-    const visionNeed = Math.max(0, 1 - student.vision);
+  const heights = students.map(student => student.height);
+  const shortest = Math.min(...heights);
+  const heightRange = Math.max(...heights) - shortest;
+  const depthRange = rows - 1;
+  // One unit of the integer vision penalty outweighs the combined secondary costs.
+  const visionPriority = 2 * students.length + 1;
 
-    return availableSeats.map(seat => {
-      const depth = (seat.row - 1) / Math.max(1, usedRows - 1);
-      const offset = Math.abs(seat.number - (2 * desks + 1) / 2) / Math.max(1, desks - 0.5);
-      const heightLoss = 0.9 * (heightRank - depth) ** 2;
-      const visionLoss = 2.6 * visionNeed * (depth + 0.28 * offset);
-      return heightLoss + visionLoss + 0.004 * offset;
+  const costs = students.map(student => {
+    const heightDepth = heightRange === 0 ? 0 : (student.height - shortest) / heightRange;
+    const vision = Math.min(1, student.vision);
+    const visionNeed = 1 - vision;
+    const lastPreferredRow = 1 + Math.round(depthRange * vision ** 3);
+    const visionSeverity = 100 + Math.round(100 * visionNeed);
+
+    return seats.map(seat => {
+      const rowsBeyondPreference = Math.max(0, seat.row - lastPreferredRow);
+      const depth = (seat.row - 1) / Math.max(1, depthRange);
+      const heightLoss = (heightDepth - depth) ** 2;
+      const visibilityLoss = 0.15 * visionNeed * depth;
+      return visionPriority * visionSeverity * rowsBeyondPreference + heightLoss + visibilityLoss;
     });
   });
 
-  minimumAssignment(costs).forEach((owner, index) => {
-    if (owner > 0) seats[index].student = students[owner - 1];
-  });
+  const assignment = minimumAssignment(costs);
+  const seatsPerRow = desks * 2;
+  const middleSeat = desks + 0.5;
+  // Once rows are decided, give the central seats in each row to the weakest eyesight.
+  for (let start = 0; start < seats.length; start += seatsPerRow) {
+    const end = start + seatsPerRow;
+    const rowStudents = Array.from(assignment.subarray(start, end))
+      .filter(owner => owner > 0).map(owner => students[owner - 1])
+      .sort((a, b) => a.vision - b.vision);
+    const rowSeats = seats.slice(start, end)
+      .sort((a, b) => Math.abs(a.number - middleSeat) - Math.abs(b.number - middleSeat));
+    rowStudents.forEach((student, index) => { rowSeats[index].student = student; });
+  }
   return seats;
 }
