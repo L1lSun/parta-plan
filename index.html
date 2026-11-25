@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Автоматическая рассадка учеников по росту и остроте зрения с импортом из Excel.">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>План класса — Рассадка учеников</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="app.mjs"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="top-inner">
+      <a class="brand" href="./" aria-label="План класса, главная">
+        <svg aria-hidden="true" viewBox="0 0 36 36" class="brand-icon"><rect width="36" height="36" rx="10" fill="currentColor"/><path d="M10 12h16M11 18h5v5h-5zm9 0h5v5h-5z" fill="none" stroke="white" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        План класса
+      </a>
+      <button type="button" class="top-link" id="help-button">
+        <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.6 2.6 0 0 1 5 .7c0 1.8-2.5 2-2.5 3.7m0 3h.01"/></svg>
+        Как это работает
+      </button>
+    </div>
+  </header>
+  <main class="page">
+    <section class="intro" aria-labelledby="page-title">
+      <h1 id="page-title">Рассадка учеников</h1>
+      <p>Загрузите список класса из Excel и получите план мест с учётом роста и зрения.</p>
+    </section>
+    <div class="workspace">
+      <div class="sidebar">
+        <section class="card config" aria-labelledby="import-title">
+          <h2 id="import-title">Список учеников</h2>
+          <p class="section-note">Три столбца: ФИО, рост в см, острота зрения.</p>
+          <input id="file-input" class="visually-hidden" type="file" accept=".xlsx,.csv" tabindex="-1">
+          <button type="button" class="dropzone" id="dropzone" aria-describedby="file-formats">
+            <span class="upload-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 16V4m-4 4 4-4 4 4M5 15v5h14v-5"/></svg></span>
+            <span id="upload-label">Выбрать файл</span>
+            <span class="drop-note" id="file-formats">или перетащите .xlsx или .csv</span>
+          </button>
+          <div class="file-state" id="file-state" hidden>
+            <span class="file-name" id="file-name"></span>
+            <button type="button" class="icon-button" id="clear-file" aria-label="Удалить список"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+          </div>
+          <div class="error" id="import-error" role="alert" hidden></div>
+          <div class="file-actions">
+            <button type="button" class="text-button" id="template-button">
+              <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 4v11m-4-4 4 4 4-4M5 16v4h14v-4"/></svg>
+              Шаблон Excel
+            </button>
+            <button type="button" class="text-button" id="example-button">Открыть пример</button>
+          </div>
+        </section>
+        <section class="card config" aria-labelledby="room-title">
+          <h2 id="room-title">Кабинет</h2>
+          <div class="fields">
+            <label>Рядов от доски <select id="row-count"></select></label>
+            <label>Парт в ряду <select id="desk-count"></select></label>
+          </div>
+          <p class="capacity" id="capacity"></p>
+          <p class="room-error" id="room-error" role="status" hidden></p>
+          <button type="button" class="primary-button" id="calculate-button" disabled>
+            <svg aria-hidden="true" viewBox="0 0 24 24"><rect x="3" y="3" width="6" height="6" rx="1"/><rect x="15" y="3" width="6" height="6" rx="1"/><rect x="3" y="15" width="6" height="6" rx="1"/><rect x="15" y="15" width="6" height="6" rx="1"/></svg>
+            Распределить места
+          </button>
+        </section>
+        <p class="privacy"><svg aria-hidden="true" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3m-4 4v3"/></svg>Файл обрабатывается в вашем браузере. Данные учеников остаются на устройстве.</p>
+      </div>
+      <section class="card plan" aria-labelledby="plan-title">
+        <div class="plan-header">
+          <div>
+            <h2 id="plan-title">План кабинета</h2>
+            <p id="plan-status" aria-live="polite">Загрузите список, чтобы распределить места</p>
+          </div>
+          <div class="plan-actions" aria-label="Экспорт плана">
+            <button type="button" class="outline-button" id="export-button" disabled>
+              <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 4v11m-4-4 4 4 4-4M5 16v4h14v-4"/></svg><span>Excel</span>
+            </button>
+            <button type="button" class="outline-button" id="print-button" disabled>
+              <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M7 8V3h10v5M7 17H4V9h16v8h-3m-10-4h10v8H7zm10-2h.01"/></svg><span>Печать</span>
+            </button>
+          </div>
+        </div>
+        <div class="room-scroll" tabindex="0" aria-label="Схема мест в кабинете">
+          <div class="room" id="room">
+            <div class="board"><span>ДОСКА</span></div>
+            <div id="seat-map"></div>
+          </div>
+        </div>
+        <div class="legend" aria-label="Обозначения">
+          <span><i class="occupied-key"></i>Занято</span>
+          <span><i class="free-key"></i>Свободно</span>
+        </div>
+      </section>
+    </div>
+  </main>
+  <dialog id="help-dialog" aria-labelledby="help-title">
+    <div class="dialog-head"><h2 id="help-title">Как это работает</h2><form method="dialog"><button class="icon-button" aria-label="Закрыть"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button></form></div>
+    <ol class="help-list">
+      <li>Заполните первый лист Excel. В столбце A укажите ФИО, в B — рост в сантиметрах, в C — остроту зрения, например 0,7 или 1,0. Сайт также принимает CSV с точкой с запятой, запятой или табуляцией.</li>
+      <li>Укажите, сколько рядов от доски и сколько двухместных парт стоит в каждом ряду. Ряд 1 расположен ближе всего к доске.</li>
+      <li>Нажмите «Распределить места». При расчёте ученики с пониженной остротой зрения получают приоритет на места ближе к доске и к центру. Рост учитывается так, чтобы более низкие ученики по возможности сидели перед более высокими.</li>
+      <li>Распечатайте схему или скачайте её в Excel. В результат входят ФИО и места.</li>
+    </ol>
+    <p class="section-note">Остроту зрения можно указать в процентах, например 70%. Диоптрии из рецепта на очки не подходят для этого расчёта.</p>
+  </dialog>
+</body>
+</html>
